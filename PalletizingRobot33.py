@@ -5,6 +5,8 @@ import cv2
 from SDK import ELITE
 from CameraCalibration import CameraCalibrationHelper
 import threading
+from pyModbusTCP.client import ModbusClient
+
 
 """
 Important parameters to twitch:
@@ -31,6 +33,7 @@ class PalletizingRobot:
         
     def __init__(self, robot_ip, gray_thresh = 100, area_thresh = 45000, 
                  cam_min_lim = (0, 0), cam_max_lim = (640, 480)):
+
         self.robot = ELITE(robot_ip)
         self.frame = None
         self.camera = None
@@ -40,6 +43,12 @@ class PalletizingRobot:
         self.area_thresh = area_thresh
         self.cam_min_lim = cam_min_lim
         self.cam_max_lim = cam_max_lim
+        self.plc = ModbusClient(host="169.168.0.241", port=502, unit_id=1, auto_open=True)
+        self.last_center = None
+        self.last_angle = None
+        self.last_detection_ok = False
+        self.wait_pose = [-143.44, 430.239,-30, 0, 0, 0]
+
         
     def initialize_camera(self):
         self.helper = CameraCalibrationHelper()
@@ -48,20 +57,18 @@ class PalletizingRobot:
         time.sleep(1)
         self.camera_available = True
     
+
     def camera_thread(self):
-        if self.camera_available:
-            while True:
-                frame = self.camera.capture_array()[:, :, 0:3]
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                frame = self.helper.correct_image(frame)
-                frame, mask, center, angle, success = self.detect_box(frame, self.gray_thresh,
-                                                                      self.area_thresh, iter_ = 1)
-                frame = cv2.rectangle(frame, self.cam_min_lim, self.cam_max_lim, (0, 0, 0), 10)
-                cv2.imshow("Robot Camera", frame)
-                cv2.imshow("Robot Camera mask", mask)
-                
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+         while True:
+            frame = self.camera.capture_array()[:, :, 0:3]
+            frame = self.helper.correct_image(frame)
+            frame, mask, center, angle, success = self.detect_box(frame, self.gray_thresh, self.area_thresh, iter_=1)
+            if success and (abs(angle) < 10 or abs(angle - 90) < 10):
+                self.last_center = center
+                self.last_angle = angle
+                self.last_detection_ok = True
+            else:
+                self.last_detection_ok = False
     
     def detect_box(self, frame, gray_thresh, area_thresh, iter_ = 1):
         """
@@ -96,7 +103,7 @@ class PalletizingRobot:
         if area < area_thresh:
             return frame, mask, None, None, 0
         
-        # Detect square position and orientation 
+        # detecta posicion y orientacion
         rect = cv2.minAreaRect(largest_contour)
         center, (width, height), angle = rect
         
@@ -128,36 +135,123 @@ class PalletizingRobot:
         height = 140.0 # mean height of the wood piece
         beta = np.arctan(height/width) 
         L = np.sqrt((width/2)**2 + (height/2)**2)
+        aux = -self.piece_angle
         if self.piece_angle < 0:
             aux = self.piece_angle
         else:
             aux = -self.piece_angle
         self.robot_x = L * np.sin(np.pi + (aux * (np.pi/180)) - beta)
         
-        # Some hints
-        self.robot_y_lims = None
-        self.camera_x_center_lims = None
-        self.robot_y = None
-        self.robot_angle = None
-        
+        cam_min_x = self.cam_min_lim[0]
+        cam_max_x = self.cam_max_lim[0]
+        robot_y_min = -150
+        robot_y_max = 150
+        self.robot_y = ((center_x - cam_min_x) / (cam_max_x - cam_min_x)) * (robot_y_max - robot_y_min) + robot_y_min
+        self.robot_angle = angle
+
+
 
     def mozaic_generator(self):
-        """
-        [INCOMPLETE FUNCTION]: It should generate the position of where the
-        piece will be placed in the pallet.
-        """
-        # hint: do it with self.piece_num
+         
 
-        return None
+        columnas = 2
+        col = self.piece_num % columnas
+        row = self.piece_num // columnas
+        if abs(self.robot_angle) < 10:
+
+        # 0°
+            base_x = -663.823
+            base_y = -170.596
+            base_z = -167.794
+            base_rx = 176.509
+            base_ry = -3.206
+            base_rz = 2.355
+            pitch_x = 0
+            pitch_y = -60
+            pitch_z = 100   # ¡AUMENTA z!
+
+        elif abs(self.robot_angle - 90) < 10:
+        # 90°
+            base_x = -663.817
+            base_y = 342.746
+            base_z = -167.798
+            base_rx = 178.510
+            base_ry = -3.206
+            base_rz = 2.355
+            pitch_x = 0
+            pitch_y = -60
+            pitch_z = 100
+        else:
+            base_x = -643.317
+            base_y = 59.351
+            base_z = -155.339
+            base_rx = 176.808
+            base_ry = 1.524
+            base_rz = 92.951
+            pitch_x = 0
+            pitch_y = -60
+            pitch_z = 100
+
+        x = base_x + col * pitch_x
+        y = base_y + col * pitch_y
+        z = base_z + row * pitch_z   #
     
-    def pick_and_place(self):
+        return [x, y, z, base_rx, base_ry, base_rz]
+
+        
+    def pick_and_place(self,center,angle):
         """
         [INCOMPLETE FUNCTION]: Funcion that commands the robot to pick the wood
         piece and place it in the desired pallet position (given by the 
         mozaic_generator function).
         """
-        # no hints for this one :c
+
+        x, y = self.helper.map_camara2robot(center, angle)[:2]
+        rz = angle
+        z_pick = 50  # Ajusta esta altura según tu banda
+        pick_pose_down = [x, y, z_pick, 0, 0, rz]
+        pick_pose_up = [x, y, z_pick + 100, 0, 0, rz]  # Subida segura
+
+        # Baja al pick
+        self.robot.move_l_pose(pick_pose_up)
+        self.robot.wait_until_motion_complete()
+        self.robot.move_l_pose(pick_pose_down)
+        self.robot.wait_until_motion_complete()
+
+        # Cierra garra
+        self.helper.cerrar_garra()
+        time.sleep(1)
+
+        # Sube después de agarrar
+        self.robot.move_l_pose(pick_pose_up)
+        self.robot.wait_until_motion_complete()
+
+        # Calcula posición de drop/place
+        place_pose = self.mozaic_generator()
+        place_pose_up = place_pose.copy()
+        place_pose_up[2] += 100  # Altura segura sobre el pallet/caja
+
+        # Va sobre el pallet/caja
+        self.robot.move_l_pose(place_pose_up)
+        self.robot.wait_until_motion_complete()
+        self.robot.move_l_pose(place_pose)
+        self.robot.wait_until_motion_complete()
+
+        # Abre garra
+        self.helper.abrir_garra()
+        time.sleep(1)
+
+        # Sube después de dejar la pieza
+        self.robot.move_l_pose(place_pose_up)
+        self.robot.wait_until_motion_complete()
+
+        # Vuelve a la posición de espera
+        self.robot.move_l_pose(self.wait_pose)
+        self.robot.wait_until_motion_complete()
+
+        self.piece_num += 1
         return None
+
    
     def run(self):
         thread = threading.Thread(target=self.camera_thread, daemon=True)
@@ -165,10 +259,30 @@ class PalletizingRobot:
         
         if self.robot.connect():
             print("Successfully connected to robot")
-            
+        
             # [Incomplete]: basic robot functions...
             # self.robot.something()
+            self.robot.set_user_number(4)
+            self.robot.set_current_coord(3)
+            self.robot.set_tool_number(2)
+            self.robot.move_l_pose(self.wait_pose)
+            self.robot.wait_until_motion_complete()
+
             while True:
+                plc_coil = self.plc.read_coils(0, 1)
+                if plc_coil and plc_coil[0]:
+                    if self.last_detection_ok:
+
+                    #Usando datos almacenados — ejecutando pick and place#
+                        self.pick_and_place(self.last_center, self.last_angle)
+
+                        while self.plc.read_coils(0, 1)[0]:
+                            time.sleep(1)
+                        self.last_detection_ok = False  # Resetea bandera para esperar la próxima pieza
+                else:
+                    print(" No hay datos recientes de detección — no se ejecuta pick and place")
+                time.sleep(1)
+            else:
                 time.sleep(1)
         self.robot.disconnect()
 
