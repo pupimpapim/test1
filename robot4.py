@@ -71,14 +71,7 @@ class PalletizingRobot:
                 self.last_detection_ok = False
     
     def detect_box(self, frame, gray_thresh, area_thresh, iter_ = 1):
-        """
-        The angle of the wood piece is in the range of (-90, 90) in degreesm
-        so that the conversion to the robot's Rz is easy.
-
-        the iter_ parameter could be changed in case of very noisy environments,
-        but it is not recommended to change it too much as it will distort the 
-        calculation of the center of mass.        
-        """
+      
         aux = frame[self.cam_min_lim[1]:self.cam_max_lim[1],
                     self.cam_min_lim[0]:self.cam_max_lim[0]]
         
@@ -123,12 +116,6 @@ class PalletizingRobot:
     
     def map_camara2robot(self, center_x, angle):
 
-        """
-        [INCOMPLETE FUNCTION]: It should map the camera coordinates of the piece
-        to the desired position of the robot, we will help you only with the 
-        calculation of the robot x position, the rest is up to you!
-        
-        """
         # Calculation of the robot delta x position
         self.piece_angle = 90 - angle
         width = 90.0 # mean width of the wood piece
@@ -201,9 +188,6 @@ class PalletizingRobot:
         
     def pick_and_place(self, center, angle):
           
-    """
-    Función que comanda al robot para tomar la pieza y dejarla en la posición de mosaico.
-    """
 
     # 1. Calcular coordenadas del robot a partir del centro detectado por cámara
           self.map_camara2robot(center[0], angle)
