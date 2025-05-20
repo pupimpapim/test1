@@ -139,35 +139,35 @@ class PalletizingRobot:
         pick_pose_down = [x, y, z_pick, 0, 0, rz]
         pick_pose_up = [x, y, z_pick + 100, 0, 0, rz]  # Subida segura
 
-        self.robot.move_l_pose(np.array(pick_pose_up), speed=20)
+        self.robot.move_l_pose(np.array(pick_pose_up), speed=20,acc=20)
         self.robot.wait_until_motion_complete()
 
-        self.robot.move_l_pose(np.array(pick_pose_down), speed=20)
+        self.robot.move_l_pose(np.array(pick_pose_down), speed=20,acc=20)
         self.robot.wait_until_motion_complete()
 
         self.helper.cerrar_garra()
         time.sleep(1)
 
-        self.robot.move_l_pose(np.array(pick_pose_up), speed=20)
+        self.robot.move_l_pose(np.array(pick_pose_up), speed=20,acc=20)
         self.robot.wait_until_motion_complete()
 
         place_pose = self.mozaic_generator()
         place_pose_up = place_pose.copy()
         place_pose_up[2] += 100  # Altura segura sobre la caja
 
-        self.robot.move_l_pose(np.array(place_pose_up), speed=20)
+        self.robot.move_l_pose(np.array(place_pose_up), speed=20,acc=20)
         self.robot.wait_until_motion_complete()
 
-        self.robot.move_l_pose(np.array(place_pose), speed=20)
+        self.robot.move_l_pose(np.array(place_pose), speed=20, acc=20)
         self.robot.wait_until_motion_complete()
 
         self.helper.abrir_garra()
         time.sleep(1)
 
-        self.robot.move_l_pose(np.array(place_pose_up), speed=20)
+        self.robot.move_l_pose(np.array(place_pose_up), speed=20, acc=20)
         self.robot.wait_until_motion_complete()
 
-        self.robot.move_l_pose(np.array(self.wait_pose), speed=20)
+        self.robot.move_l_pose(np.array(self.wait_pose), speed=20, acc=20)
         self.robot.wait_until_motion_complete()
 
         self.piece_num += 1
