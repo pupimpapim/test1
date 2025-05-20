@@ -35,17 +35,18 @@ class PalletizingRobot:
         self.camera_available = True
 
     def initialize_camera(self):
-    print("[INFO] Inicializando cámara...")
-    self.helper = CameraCalibrationHelper()
-    try:
-        self.camera = self.helper.initialize_raspicam(headless=True, sensor_index=-1)
-        print("[INFO] Cámara inicializada:", self.camera)
-        self.helper.calibrate_raspberry()
-        print("[INFO] Calibración completada.")
-        self.camera_available = True
-    except Exception as e:
-        print("[ERROR] No se pudo inicializar la cámara:", e)
-        self.camera_available = False
+        
+        print("[INFO] Inicializando cámara...")
+        self.helper = CameraCalibrationHelper()
+        try:
+            self.camera = self.helper.initialize_raspicam(headless=True, sensor_index=-1)
+            print("[INFO] Cámara inicializada:", self.camera)
+            self.helper.calibrate_raspberry()
+            print("[INFO] Calibración completada.")
+            self.camera_available = True
+        except Exception as e:
+            print("[ERROR] No se pudo inicializar la cámara:", e)
+            self.camera_available = False
     time.sleep(1)
 
     def detect_box(self, frame, gray_thresh, area_thresh, iter_=1):
