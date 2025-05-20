@@ -6,7 +6,7 @@ from SDK import ELITE
 from CameraCalibration import CameraCalibrationHelper
 import threading
 from pyModbusTCP.client import ModbusClient
-
+#prueba6
 class PalletizingRobot:
 
     def __init__(self, robot_ip, gray_thresh=100, area_thresh=45000, 
@@ -28,71 +28,77 @@ class PalletizingRobot:
         self.wait_pose = [-143.44, 430.239, -30, 0, 0, 0]
 
     def initialize_camera(self):
-        print("[INFO] Inicializando cámara...")
         self.helper = CameraCalibrationHelper()
-        try:
-            self.camera = self.helper.initialize_raspicam(headless=True, sensor_index=-1)
-            print("[INFO] Cámara inicializada:", self.camera)
-            self.helper.calibrate_raspberry()
-            print("[INFO] Calibración completada.")
-            self.camera_available = True
-        except Exception as e:
-            print("[ERROR] No se pudo inicializar la cámara:", e)
-            self.camera_available = False
+        self.camera = self.helper.initialize_raspicam(headless = True, sensor_index = -1)
+        self.helper.calibrate_raspberry()
         time.sleep(1)
-
+        self.camera_available = True
+    
     def camera_thread(self):
-        while True:
-            try:
+        if self.camera_available:
+            while True:
                 frame = self.camera.capture_array()[:, :, 0:3]
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 frame = self.helper.correct_image(frame)
-                frame, mask, center, angle, success = self.detect_box(
-                    frame, self.gray_thresh, self.area_thresh, iter_=1
-                )
-                # Debug:
-                if success:
-                    print(f"[INFO] Pieza detectada. Centro: {center}, Ángulo: {angle:.2f}")
-                if success and (abs(angle) < 10 or abs(angle - 90) < 10):
-                    self.last_center = center
-                    self.last_angle = angle
-                    self.last_detection_ok = True
-                else:
-                    self.last_detection_ok = False
-                # Si quieres ver el video mientras, descomenta:
-                # frame = cv2.rectangle(frame, self.cam_min_lim, self.cam_max_lim, (0, 0, 0), 10)
-                # cv2.imshow("Robot Camera", frame)
-                # cv2.imshow("Robot Camera mask", mask)
-                # if cv2.waitKey(1) & 0xFF == ord('q'):
-                #     break
-            except Exception as e:
-                print("[ERROR] En hilo de cámara:", e)
-                time.sleep(1)
+                frame, mask, center, angle, success = self.detect_box(frame, self.gray_thresh,
+                                                                      self.area_thresh, iter_ = 1)
+                frame = cv2.rectangle(frame, self.cam_min_lim, self.cam_max_lim, (0, 0, 0), 10)
+                cv2.imshow("Robot Camera", frame)
+                cv2.imshow("Robot Camera mask", mask)
+                
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+    
+    def detect_box(self, frame, gray_thresh, area_thresh, iter_ = 1):
+        """
+        The angle of the wood piece is in the range of (-90, 90) in degreesm
+        so that the conversion to the robot's Rz is easy.
 
-    def detect_box(self, frame, gray_thresh, area_thresh, iter_=1):
+        the iter_ parameter could be changed in case of very noisy environments,
+        but it is not recommended to change it too much as it will distort the 
+        calculation of the center of mass.        
+        """
         aux = frame[self.cam_min_lim[1]:self.cam_max_lim[1],
                     self.cam_min_lim[0]:self.cam_max_lim[0]]
+        
+        # Grayscale detection
         gray_image = cv2.cvtColor(aux, cv2.COLOR_BGR2GRAY)
+        
+        # mask thresh
         _, mask = cv2.threshold(gray_image, gray_thresh, 255, cv2.THRESH_BINARY)
         mask = cv2.erode(mask, None, iterations=iter_)
         mask = cv2.dilate(mask, None, iterations=iter_)
+        
+        # find contour with largest area
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Check if there is contour:
         if not contours:
             return frame, mask, None, None, 0
+        
+        # check if area is over the min threshold
         largest_contour = max(contours, key=cv2.contourArea)
         area = cv2.contourArea(largest_contour)
         if area < area_thresh:
             return frame, mask, None, None, 0
+        
+        # Detect square position and orientation 
         rect = cv2.minAreaRect(largest_contour)
         center, (width, height), angle = rect
+        
         if width < height:
             angle += 90
+            
         center = (int(center[0]) + self.cam_min_lim[0], int(center[1]) + self.cam_min_lim[1])
+    
+        # draw over frame
         box = cv2.boxPoints(rect).astype(int)
-        box[:, 0] = box[:, 0] + self.cam_min_lim[0]
-        box[:, 1] = box[:, 1] + self.cam_min_lim[1]
-        frame = cv2.drawContours(frame, [box], 0, (0, 255, 0), 2)
+        box[:, 0] =  box[:, 0] + self.cam_min_lim[0]
+        box[:, 1] =  box[:, 1] + self.cam_min_lim[1]
+        frame = cv2.drawContours(frame, [box], 0, (0, 255, 0), 2) 
         frame = cv2.circle(frame, center, 5, (255, 0, 0), 10)
         return frame, mask, center, angle, 1
+        
 
     def map_camara2robot(self, center_x, angle):
         self.piece_angle = 90 - angle
