@@ -163,7 +163,7 @@ class PalletizingRobot:
         x = self.robot_x
         y = self.robot_y
         rz = self.robot_angle
-        z_pick = -92.045  # Ajusta esta altura según tu banda
+        z_pick = -80.045  # Ajusta esta altura según tu banda
         pick_pose_down = [x, y, z_pick, 0, 0, rz]
         pick_pose_up = [x, y, z_pick + 100, 0, 0, rz]  # Subida segura
 
