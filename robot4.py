@@ -6,7 +6,7 @@ from SDK import ELITE
 from CameraCalibration import CameraCalibrationHelper
 import threading
 from pyModbusTCP.client import ModbusClient
-
+#version prueba3
 
 """
 Important parameters to twitch:
@@ -213,9 +213,9 @@ class PalletizingRobot:
         pick_pose_up = [x, y, z_pick + 100, 0, 0, rz]  # Subida segura
 
         # Baja al pick
-        self.robot.move_l_pose(pick_pose_up)
+        self.robot.move_l_pose(pick_pose_up,speed=20)
         self.robot.wait_until_motion_complete()
-        self.robot.move_l_pose(pick_pose_down)
+        self.robot.move_l_pose(pick_pose_down,speed=20)
         self.robot.wait_until_motion_complete()
 
         # Cierra garra
@@ -223,7 +223,7 @@ class PalletizingRobot:
         time.sleep(1)
 
         # Sube después de agarrar
-        self.robot.move_l_pose(pick_pose_up)
+        self.robot.move_l_pose(pick_pose_up,speed=20)
         self.robot.wait_until_motion_complete()
 
         # Calcula posición de drop/place
@@ -232,9 +232,9 @@ class PalletizingRobot:
         place_pose_up[2] += 100  # Altura segura sobre el pallet/caja
 
         # Va sobre el pallet/caja
-        self.robot.move_l_pose(place_pose_up)
+        self.robot.move_l_pose(place_pose_up,speed=20)
         self.robot.wait_until_motion_complete()
-        self.robot.move_l_pose(place_pose)
+        self.robot.move_l_pose(place_pose,speed=20)
         self.robot.wait_until_motion_complete()
 
         # Abre garra
@@ -242,11 +242,11 @@ class PalletizingRobot:
         time.sleep(1)
 
         # Sube después de dejar la pieza
-        self.robot.move_l_pose(place_pose_up)
+        self.robot.move_l_pose(place_pose_up,speed=20)
         self.robot.wait_until_motion_complete()
 
         # Vuelve a la posición de espera
-        self.robot.move_l_pose(self.wait_pose)
+        self.robot.move_l_pose(self.wait_pose,speed=20)
         self.robot.wait_until_motion_complete()
 
         self.piece_num += 1
