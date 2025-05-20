@@ -6,7 +6,7 @@ from SDK import ELITE
 from CameraCalibration import CameraCalibrationHelper
 import threading
 from pyModbusTCP.client import ModbusClient
-#version prueba3
+#version prueba4
 
 """
 Important parameters to twitch:
@@ -199,58 +199,66 @@ class PalletizingRobot:
         return [x, y, z, base_rx, base_ry, base_rz]
 
         
-    def pick_and_place(self,center,angle):
-        """
-        [INCOMPLETE FUNCTION]: Funcion that commands the robot to pick the wood
-        piece and place it in the desired pallet position (given by the 
-        mozaic_generator function).
-        """
+    def pick_and_place(self, center, angle):
+          
+    """
+    Función que comanda al robot para tomar la pieza y dejarla en la posición de mosaico.
+    """
 
-        x, y = self.helper.map_camara2robot(center, angle)[:2]
-        rz = angle
-        z_pick = 50  # Ajusta esta altura según tu banda
-        pick_pose_down = [x, y, z_pick, 0, 0, rz]
-        pick_pose_up = [x, y, z_pick + 100, 0, 0, rz]  # Subida segura
+    # 1. Calcular coordenadas del robot a partir del centro detectado por cámara
+          self.map_camara2robot(center[0], angle)
+          x = self.robot_x
+          y = self.robot_y
+          rz = self.robot_angle
+          z_pick = 50  # Ajusta esta altura según tu banda
 
-        # Baja al pick
-        self.robot.move_l_pose(pick_pose_up,speed=20)
-        self.robot.wait_until_motion_complete()
-        self.robot.move_l_pose(pick_pose_down,speed=20)
-        self.robot.wait_until_motion_complete()
+          pick_pose_down = [x, y, z_pick, 0, 0, rz]
+          pick_pose_up = [x, y, z_pick + 100, 0, 0, rz]  # Subida segura
 
-        # Cierra garra
-        self.helper.cerrar_garra()
-        time.sleep(1)
+    # 2. Ir a posición de pre-pick (arriba)
+          self.robot.move_l_pose(pick_pose_up, speed=20)
+          self.robot.wait_until_motion_complete()
 
-        # Sube después de agarrar
-        self.robot.move_l_pose(pick_pose_up,speed=20)
-        self.robot.wait_until_motion_complete()
+    # 3. Bajar para agarrar la pieza
+          self.robot.move_l_pose(pick_pose_down, speed=20)
+          self.robot.wait_until_motion_complete()
 
-        # Calcula posición de drop/place
-        place_pose = self.mozaic_generator()
-        place_pose_up = place_pose.copy()
-        place_pose_up[2] += 100  # Altura segura sobre el pallet/caja
+    # 4. Cerrar garra
+          self.helper.cerrar_garra()
+          time.sleep(1)
 
-        # Va sobre el pallet/caja
-        self.robot.move_l_pose(place_pose_up,speed=20)
-        self.robot.wait_until_motion_complete()
-        self.robot.move_l_pose(place_pose,speed=20)
-        self.robot.wait_until_motion_complete()
+    # 5. Subir pieza
+          self.robot.move_l_pose(pick_pose_up, speed=20)
+          self.robot.wait_until_motion_complete()
 
-        # Abre garra
-        self.helper.abrir_garra()
-        time.sleep(1)
+    # 6. Generar posición de depósito
+          place_pose = self.mozaic_generator()
+          place_pose_up = place_pose.copy()
+          place_pose_up[2] += 100  # Altura segura sobre la caja
 
-        # Sube después de dejar la pieza
-        self.robot.move_l_pose(place_pose_up,speed=20)
-        self.robot.wait_until_motion_complete()
+    # 7. Ir sobre la caja/palet
+          self.robot.move_l_pose(place_pose_up, speed=20)
+          self.robot.wait_until_motion_complete()
 
-        # Vuelve a la posición de espera
-        self.robot.move_l_pose(self.wait_pose,speed=20)
-        self.robot.wait_until_motion_complete()
+    # 8. Bajar a depositar
+          self.robot.move_l_pose(place_pose, speed=20)
+          self.robot.wait_until_motion_complete()
 
-        self.piece_num += 1
-        return None
+    # 9. Abrir garra
+          self.helper.abrir_garra()
+          time.sleep(1)
+
+    # 10. Subir garra tras dejar pieza
+          self.robot.move_l_pose(place_pose_up, speed=20)
+          self.robot.wait_until_motion_complete()
+
+    # 11. Volver a la posición de espera
+          self.robot.move_l_pose(self.wait_pose, speed=20)
+          self.robot.wait_until_motion_complete()
+
+    # 12. Actualizar número de pieza
+          self.piece_num += 1
+          return None
 
    
     def run(self):
