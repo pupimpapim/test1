@@ -4,3 +4,29 @@ Traceback (most recent call last):
   File "/home/alberto/grupo4/test1/robot4.py", line 8, in <module>
     from pyModbusTCP.client import ModbusClient
 ModuleNotFoundError: No module named 'pyModbusTCP'.
+
+
+
+
+22222
+Camera __init__ sequence did not complete.
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/picamera2/picamera2.py", line 293, in __init__
+    self._open_camera()
+  File "/usr/lib/python3/dist-packages/picamera2/picamera2.py", line 505, in _open_camera
+    self.camera.acquire()
+RuntimeError: Failed to acquire camera: Device or resource busy
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/alberto/grupo4/test1/robot4.py", line 285, in <module>
+    robot.initialize_camera()
+  File "/home/alberto/grupo4/test1/robot4.py", line 55, in initialize_camera
+    self.camera = self.helper.initialize_raspicam(headless = True, sensor_index = -1)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/alberto/grupo4/test1/CameraCalibration.py", line 103, in initialize_raspicam
+    self.picam2 = Picamera2()
+                  ^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/picamera2/picamera2.py", line 305, in __init__
+    raise RuntimeError("Camera __init__ sequence did not complete.")
