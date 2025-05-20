@@ -34,17 +34,19 @@ class PalletizingRobot:
         time.sleep(1)
         self.camera_available = True
 
-    def camera_thread(self):
-        while True:
-            frame = self.camera.capture_array()[:, :, 0:3]
-            frame = self.helper.correct_image(frame)
-            frame, mask, center, angle, success = self.detect_box(frame, self.gray_thresh, self.area_thresh, iter_=1)
-            if success and (abs(angle) < 10 or abs(angle - 90) < 10):
-                self.last_center = center
-                self.last_angle = angle
-                self.last_detection_ok = True
-            else:
-                self.last_detection_ok = False
+    def initialize_camera(self):
+    print("[INFO] Inicializando cámara...")
+    self.helper = CameraCalibrationHelper()
+    try:
+        self.camera = self.helper.initialize_raspicam(headless=True, sensor_index=-1)
+        print("[INFO] Cámara inicializada:", self.camera)
+        self.helper.calibrate_raspberry()
+        print("[INFO] Calibración completada.")
+        self.camera_available = True
+    except Exception as e:
+        print("[ERROR] No se pudo inicializar la cámara:", e)
+        self.camera_available = False
+    time.sleep(1)
 
     def detect_box(self, frame, gray_thresh, area_thresh, iter_=1):
         aux = frame[self.cam_min_lim[1]:self.cam_max_lim[1],
